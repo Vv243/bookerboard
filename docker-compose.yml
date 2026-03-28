@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: bookerboard_postgres
+    environment:
+      POSTGRES_USER: bookerboard
+      POSTGRES_PASSWORD: bookerboard
+      POSTGRES_DB: bookerboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - bookerboard_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/base:ubuntu
+    volumes:
+      - .:/workspace:cached
+    command: sleep infinity
+    depends_on:
+      - postgres
+
+  # redis:
+  #   image: redis:7
+  #   Deferred — no public traffic yet
+
+volumes:
+  bookerboard_pgdata:
