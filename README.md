@@ -51,6 +51,7 @@ Five layers: Client (React TS) → Gateway (Go EC2) → Services (Java solver,
 Go fan score engine) → Data (PostgreSQL RDS, S3) → Ingestion (Rust Lambda 
 scraper, Go Lambda poller, manual input)
 
+
 ## Architecture Decisions Log
 | Decision | Rationale | Session |
 |---|---|---|
@@ -59,13 +60,32 @@ scraper, Go Lambda poller, manual input)
 | Redis deferred | No public traffic without fan dashboard. Add if performance demands it | 0 |
 | Solver is stateless | Easier to test, scale, and reason about. CQRS principle | 0 |
 
+## Session 2 — What was built
+
+PostgreSQL schema — all 18 tables, 59 indexes, seed data.
+
+Key decisions:
+- fan_score is temporal (one row per star per week) — enables trend detection
+- broadcast_window uses EXCLUDE constraint — prevents overlapping contract periods
+- segment enforces championship_requires_contendership at DB level
+- system_config stores configurable thresholds — no hardcoded business rules
+- Round 3 tables are append-only historical records
+
+To run the schema from scratch:
+psql -h postgres -U bookerboard -d bookerboard -f services/db/schema.sql
+2. Add seed data and verify it inserts
+Run this to insert the seed data we wrote:
+bashpsql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
+Wait — we need to create the seed file first. Create services/db/seed.sql and paste the seed data we wrote earlier (system_config, championship, broadcast_window inserts). Then run it.
+
 ## Build Checklist
 - [x] Session 0 — Environment setup
-- [ ] Session 1 — PostgreSQL schema
-- [ ] Session 2 — Java CSP solver
-- [ ] Session 3 — Go API skeleton
-- [ ] Session 4 — Go injury endpoint
-- [ ] Session 5 — Fan score pipeline
-- [ ] Session 6 — Rust scraper
-- [ ] Session 7 — TypeScript booker dashboard
-- [ ] Session 8 — AWS deployment
+- [x] Session 1 — System design, UI spec, domain knowledge, all docs
+- [x] Session 2 — PostgreSQL schema
+- [ ] Session 3 — Java CSP solver
+- [ ] Session 4 — Go API skeleton
+- [ ] Session 5 — Go injury endpoint
+- [ ] Session 6 — Fan score pipeline
+- [ ] Session 7 — Rust scraper
+- [ ] Session 8 — TypeScript booker dashboard
+- [ ] Session 9 — AWS deployment
