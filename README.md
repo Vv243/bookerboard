@@ -62,21 +62,24 @@ scraper, Go Lambda poller, manual input)
 
 ## Session 2 — What was built
 
-PostgreSQL schema — all 18 tables, 59 indexes, seed data.
+PostgreSQL schema — 18 tables, 59 indexes, seed data.
 
-Key decisions:
-- fan_score is temporal (one row per star per week) — enables trend detection
-- broadcast_window uses EXCLUDE constraint — prevents overlapping contract periods
-- segment enforces championship_requires_contendership at DB level
-- system_config stores configurable thresholds — no hardcoded business rules
-- Round 3 tables are append-only historical records
+Key design decisions made:
+- fan_score is temporal (one row per star per week) — enables trend
+  detection not just point-in-time scores
+- broadcast_window uses EXCLUDE constraint — prevents overlapping
+  contract periods for the same show type
+- segment enforces championship_requires_contendership at DB level —
+  business rule enforced in data, not just application code
+- system_config stores configurable thresholds — no hardcoded
+  business rules in application code
+- Round 3 tables are append-only historical records — never updated
 
 To run the schema from scratch:
+```bash
 psql -h postgres -U bookerboard -d bookerboard -f services/db/schema.sql
-2. Add seed data and verify it inserts
-Run this to insert the seed data we wrote:
-bashpsql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
-Wait — we need to create the seed file first. Create services/db/seed.sql and paste the seed data we wrote earlier (system_config, championship, broadcast_window inserts). Then run it.
+psql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
+```
 
 ## Build Checklist
 - [x] Session 0 — Environment setup
