@@ -60,6 +60,26 @@ scraper, Go Lambda poller, manual input)
 | Redis deferred | No public traffic without fan dashboard. Add if performance demands it | 0 |
 | Solver is stateless | Easier to test, scale, and reason about. CQRS principle | 0 |
 
+
+
+To run the schema from scratch:
+```bash
+psql -h postgres -U bookerboard -d bookerboard -f services/db/schema.sql
+psql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
+```
+
+## Build Checklist
+- [x] Session 0 — Environment setup
+- [x] Session 1 — System design, UI spec, domain knowledge, all docs
+- [x] Session 2 — PostgreSQL schema
+- [x] Session 3 — Java CSP solver
+- [x] Session 4 — Go API skeleton
+- [ ] Session 5 — Go injury endpoint
+- [ ] Session 6 — Fan score pipeline
+- [ ] Session 7 — Rust scraper
+- [ ] Session 8 — TypeScript booker dashboard
+- [ ] Session 9 — AWS deployment
+
 ## Session 2 — What was built
 
 PostgreSQL schema — 18 tables, 59 indexes, seed data.
@@ -75,20 +95,41 @@ Key design decisions made:
   business rules in application code
 - Round 3 tables are append-only historical records — never updated
 
-To run the schema from scratch:
-```bash
-psql -h postgres -U bookerboard -d bookerboard -f services/db/schema.sql
-psql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
-```
+## Session 3 — What was built
 
-## Build Checklist
-- [x] Session 0 — Environment setup
-- [x] Session 1 — System design, UI spec, domain knowledge, all docs
-- [x] Session 2 — PostgreSQL schema
-- [ ] Session 3 — Java CSP solver
-- [ ] Session 4 — Go API skeleton
-- [ ] Session 5 — Go injury endpoint
-- [ ] Session 6 — Fan score pipeline
-- [ ] Session 7 — Rust scraper
-- [ ] Session 8 — TypeScript booker dashboard
-- [ ] Session 9 — AWS deployment
+Java Spring Boot CSP solver — AC-3 arc consistency and beam search
+implemented from scratch.
+
+Key classes:
+- Star, BroadcastWindow, Segment, Card, BackupPlan — model layer
+- Arc, ConstraintGraph — constraint graph representation
+- AC3 — arc consistency algorithm, O(ed³) complexity
+- BeamSearch — heuristic search, beam width 3
+- SolverService — orchestrates AC3 + BeamSearch
+- SolverController — POST /solve endpoint
+
+## Session 4 — What was built
+
+Go API gateway skeleton — Gin router, JWT auth, middleware.
+
+Key files:
+- config/config.go — environment variable loading with dev defaults
+- internal/model/ — Go structs for Star, Segment, Card, BackupPlan, User
+- internal/auth/jwt.go — JWT token generation and validation
+- internal/middleware/auth.go — RequireAuth and RequireCreativeDirector
+- internal/handler/health.go — GET /health
+- main.go — Gin router, route groups, server startup
+
+Verified endpoints:
+- GET /health → 200 public
+- GET /api/ping (no token) → 401 unauthorized
+- GET /api/ping (valid JWT) → 200 with role in response
+
+To run the solver:
+cd services/solver
+mvn spring-boot:run
+
+Test with curl:
+curl -X POST http://localhost:8080/solve \
+  -H "Content-Type: application/json" \
+  -d @test-card.json
