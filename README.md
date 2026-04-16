@@ -74,7 +74,7 @@ psql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
 - [x] Session 2 — PostgreSQL schema
 - [x] Session 3 — Java CSP solver
 - [x] Session 4 — Go API skeleton
-- [ ] Session 5 — Go injury endpoint
+- [x] Session 5 — Go injury endpoint
 - [ ] Session 6 — Fan score pipeline
 - [ ] Session 7 — Rust scraper
 - [ ] Session 8 — TypeScript booker dashboard
@@ -125,6 +125,35 @@ Verified endpoints:
 - GET /api/ping (no token) → 401 unauthorized
 - GET /api/ping (valid JWT) → 200 with role in response
 
+
+## Session 5 — What was built
+
+Go injury endpoint — PATCH /stars/:id — full pipeline from
+dashboard to solver to database.
+
+Key files:
+- internal/db/db.go — PostgreSQL connection pool
+- internal/db/star_repository.go — star read/write queries
+- internal/db/backup_plan_repository.go — backup plan writes
+- internal/handler/solver_client.go — HTTP client for Java solver
+- internal/handler/injury.go — PATCH /stars/:id handler
+
+Verified flow:
+1. JWT validated by middleware
+2. Star status updated in PostgreSQL
+3. Active stars fetched for solver payload
+4. Java solver called synchronously — POST /solve
+5. Backup plans written to PostgreSQL
+6. Response returned to dashboard
+
+To test:
+curl -X PATCH http://localhost:8081/api/stars/1 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "injured"}'
+
+
+## Command
 To run the solver:
 cd services/solver
 mvn spring-boot:run
