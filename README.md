@@ -75,7 +75,7 @@ psql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
 - [x] Session 3 — Java CSP solver
 - [x] Session 4 — Go API skeleton
 - [x] Session 5 — Go injury endpoint
-- [ ] Session 6 — Fan score pipeline
+- [x] Session 6 — Fan score pipeline
 - [ ] Session 7 — Rust scraper
 - [ ] Session 8 — TypeScript booker dashboard
 - [ ] Session 9 — AWS deployment
@@ -152,6 +152,27 @@ curl -X PATCH http://localhost:8081/api/stars/1 \
   -H "Content-Type: application/json" \
   -d '{"status": "injured"}'
 
+## Session 6 — What was built
+
+Go Lambda fan score pipeline — weekly cron that fetches fan
+sentiment from Reddit and Google Trends and writes to PostgreSQL.
+
+Key files:
+- fetcher/reddit.go — Reddit SquaredCircle search, computes
+  pro_score, anti_score, controversy
+- fetcher/trends.go — Google Trends interest score (simulated
+  locally, real API in production)
+- db/writer.go — upserts fan_score rows, one per star per week
+  per source
+- main.go — Lambda entry point, CloudWatchEvent handler
+- handler_test.go — local test runner
+
+Verified: 48 rows written across 24 stars, 2 sources,
+week_start = Monday of current week.
+
+To test locally:
+DATABASE_URL="postgres://bookerboard:bookerboard@postgres:5432/bookerboard?sslmode=disable" \
+  go test -v -run TestLocalRun
 
 ## Command
 To run the solver:
