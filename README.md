@@ -76,7 +76,7 @@ psql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
 - [x] Session 4 — Go API skeleton
 - [x] Session 5 — Go injury endpoint
 - [x] Session 6 — Fan score pipeline
-- [ ] Session 7 — Rust scraper
+- [x] Session 7 — Rust scraper
 - [ ] Session 8 — TypeScript booker dashboard
 - [ ] Session 9 — AWS deployment
 
@@ -173,6 +173,29 @@ week_start = Monday of current week.
 To test locally:
 DATABASE_URL="postgres://bookerboard:bookerboard@postgres:5432/bookerboard?sslmode=disable" \
   go test -v -run TestLocalRun
+
+## Session 7 — What was built
+
+Rust Lambda CAGEMATCH scraper — HTML parser that extracts match
+quality ratings and writes them to match_history.cagematch_score.
+
+Key files:
+- src/scraper.rs — CagematchScraper, HTML parsing with CSS selectors,
+  score normalization
+- src/db.rs — PostgreSQL writer, get_all_star_names, write_cagematch_score
+- src/main.rs — Lambda entry point, iterates all stars, orchestrates
+  scrape and write
+- Cargo.toml — lambda_runtime, reqwest, scraper, tokio-postgres,
+  serde_json
+
+Key concepts demonstrated:
+- Rust ownership — &str references into HTML buffer, no copies
+- Result type and ? operator — error propagation without exceptions
+- async/await with Tokio runtime
+- No GC — deterministic memory management, safe for Lambda timeouts
+
+Build: cargo build
+Deploy: cargo build --release (Session 9)
 
 ## Command
 To run the solver:
