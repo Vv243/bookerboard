@@ -2,9 +2,10 @@ package model
 
 // User represents an authenticated BookerBoard user.
 type User struct {
-	ID       int64  `json:"id"`
-	Email    string `json:"email"`
-	UserRole string `json:"userRole"`
+	ID           int64  `json:"id"`
+	Email        string `json:"email"`
+	UserRole     string `json:"userRole"`
+	PasswordHash string `json:"-"` // never serialized to JSON
 }
 
 // IsCreativeDirector returns true if this user has full access.

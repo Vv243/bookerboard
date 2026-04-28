@@ -120,3 +120,49 @@ func (r *StarRepository) GetActiveByBrand(brand string) ([]model.Star, error) {
 
 	return stars, nil
 }
+
+// GetAll returns all stars ordered by brand then name.
+func (r *StarRepository) GetAll() ([]model.Star, error) {
+	query := `
+		SELECT id, name, brand, alignment, status, schedule_type,
+		       workload_this_month, consecutive_appearances,
+		       contracted_appearances_remaining
+		FROM star
+		ORDER BY brand, name`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query stars: %w", err)
+	}
+	defer rows.Close()
+
+	var stars []model.Star
+	for rows.Next() {
+		var star model.Star
+		var contractedLeft sql.NullInt64
+
+		err := rows.Scan(
+			&star.ID,
+			&star.Name,
+			&star.Brand,
+			&star.Alignment,
+			&star.Status,
+			&star.ScheduleType,
+			&star.WorkloadThisMonth,
+			&star.ConsecutiveAppearances,
+			&contractedLeft,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan star: %w", err)
+		}
+
+		if contractedLeft.Valid {
+			val := int(contractedLeft.Int64)
+			star.ContractedAppearancesLeft = &val
+		}
+
+		stars = append(stars, star)
+	}
+
+	return stars, nil
+}

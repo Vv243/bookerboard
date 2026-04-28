@@ -15,10 +15,10 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
-	// Connect to PostgresSQL
+	// Connect to PostgreSQL
 	database, err := appdb.Connect(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal("failed to connect to database: %v", err)
+		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer database.Close()
 	log.Println("connected to PostgreSQL")
@@ -26,6 +26,7 @@ func main() {
 	// Initialize repositories
 	starRepo := appdb.NewStarRepository(database)
 	backupRepo := appdb.NewBackupPlanRepository(database)
+	userRepo := appdb.NewUserRepository(database)
 
 	// Initialize solver client
 	solverClient := handler.NewSolverClient(cfg.SolverURL)
@@ -33,6 +34,8 @@ func main() {
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 	injuryHandler := handler.NewInjuryHandler(starRepo, backupRepo, solverClient)
+	authHandler := handler.NewAuthHandler(userRepo, cfg.JWTSecret)
+	starHandler := handler.NewStarHandler(starRepo)
 
 	// Create Gin router
 	r := gin.Default()
@@ -41,6 +44,7 @@ func main() {
 	// Public routes — no auth required
 	// -------------------------------------------------------------------------
 	r.GET("/health", healthHandler.Check)
+	r.POST("/api/auth/login", authHandler.Login)
 
 	// -------------------------------------------------------------------------
 	// Protected routes — JWT required
@@ -51,10 +55,11 @@ func main() {
 		// Star endpoints
 		stars := protected.Group("/stars")
 		{
+			stars.GET("", starHandler.List)
 			stars.PATCH("/:id", injuryHandler.FlagInjury)
 		}
 
-		// Both roles - ping for testing auth
+		// Both roles — ping for testing auth
 		protected.GET("/ping", func(c *gin.Context) {
 			role, _ := c.Get("userRole")
 			c.JSON(200, gin.H{

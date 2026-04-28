@@ -77,7 +77,7 @@ psql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
 - [x] Session 5 — Go injury endpoint
 - [x] Session 6 — Fan score pipeline
 - [x] Session 7 — Rust scraper
-- [ ] Session 8 — TypeScript booker dashboard
+- [x] Session 8 — TypeScript booker dashboard
 - [ ] Session 9 — AWS deployment
 
 ## Session 2 — What was built
@@ -196,6 +196,30 @@ Key concepts demonstrated:
 
 Build: cargo build
 Deploy: cargo build --release (Session 9)
+
+## Session 8 — What was built (in progress)
+
+TypeScript React dashboard — Vite + React 18 + TailwindCSS.
+
+Completed so far:
+- Login view — arena crowd background, gold WWE aesthetic, JWT auth
+- Layout — horizontal top nav, role badge, sign out
+- Star Roster view — sortable table, brand/status/search filters,
+  role-gated backstage column, real data from Go API
+- Go API: POST /api/auth/login, GET /api/stars endpoints added
+- Auth: bcrypt password hashing, JWT token generation on login
+
+To run dashboard:
+cd dashboard
+npm run dev -- --host
+
+To run Go API:
+cd services/api
+CGO_ENABLED=0 go run main.go
+
+Test credentials:
+Email: vinh@bookerboard.com
+Password: bookerboard123
 
 ## Command
 To run the solver:
