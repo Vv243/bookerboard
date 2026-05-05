@@ -197,29 +197,37 @@ Key concepts demonstrated:
 Build: cargo build
 Deploy: cargo build --release (Session 9)
 
-## Session 8 — What was built (in progress)
+## Session 8 — Dashboard (complete)
 
-TypeScript React dashboard — Vite + React 18 + TailwindCSS.
+All five views built and working:
+- Login — arena crowd background, gold WWE aesthetic, JWT auth
+- Layout — horizontal top nav, role badge, dark/light theme toggle
+- Year Overview — PLE countdown hero (click to expand), metric cards, next show checklist
+- Narrative Threads — list + slide-over detail panel, status filters
+- Injury Alerts — flag/clear injury, role-gated actions (accept vs escalate)
+- Star Roster — sortable table, hard square tags, search + brand/status filters
+- Card Builder — broadcast budget bar, segment list, drag to reorder, add/delete segments, save + finalize
 
-Completed so far:
-- Login view — arena crowd background, gold WWE aesthetic, JWT auth
-- Layout — horizontal top nav, role badge, sign out
-- Star Roster view — sortable table, brand/status/search filters,
-  role-gated backstage column, real data from Go API
-- Go API: POST /api/auth/login, GET /api/stars endpoints added
-- Auth: bcrypt password hashing, JWT token generation on login
+Design system:
+- src/lib/styles.ts — themeColors, themeTag, themeTodo (change once, updates everywhere)
+- src/lib/theme.tsx — ThemeProvider, dark/light mode with localStorage persistence
+- Hard square tags (no border radius) — Raw, SD, Face, Heel, Active, Injured, On Track, Stalling
 
-To run dashboard:
-cd dashboard
-npm run dev -- --host
+Go API endpoints added this session:
+- POST /api/auth/login
+- GET /api/stars
+- GET/POST /api/card, PATCH /api/card/:id/reorder, DELETE /api/card/segments/:id
+- GET /api/threads, GET /api/threads/:id
+- GET /api/todos
+- GET /api/overview/stats, GET /api/overview/ples
 
-To run Go API:
-cd services/api
-CGO_ENABLED=0 go run main.go
+To run:
+- Dashboard: cd dashboard && npm run dev -- --host
+- Go API: cd services/api && CGO_ENABLED=0 go run main.go
+- Java solver: cd services/solver && mvn spring-boot:run
+- DB: docker compose up -d
 
-Test credentials:
-Email: vinh@bookerboard.com
-Password: bookerboard123
+Test credentials: vinh@bookerboard.com / bookerboard123
 
 ## Command
 To run the solver:

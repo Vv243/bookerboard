@@ -30,6 +30,7 @@ func main() {
 	threadRepo := appdb.NewNarrativeThreadRepository(database)
 	todoRepo := appdb.NewTodoRepository(database)
 	overviewRepo := appdb.NewOverviewRepository(database)
+	cardRepo := appdb.NewCardRepository(database)
 
 	// Initialize solver client
 	solverClient := handler.NewSolverClient(cfg.SolverURL)
@@ -42,6 +43,7 @@ func main() {
 	threadHandler := handler.NewNarrativeThreadHandler(threadRepo)
 	todoHandler := handler.NewTodoHandler(todoRepo)
 	overviewHandler := handler.NewOverviewHandler(overviewRepo)
+	cardHandler := handler.NewCardHandler(cardRepo)
 
 	// Create Gin router
 	r := gin.Default()
@@ -64,6 +66,10 @@ func main() {
 		protected.GET("/todos", todoHandler.List)
 		protected.GET("/overview/stats", overviewHandler.GetStats)
 		protected.GET("/overview/ples", overviewHandler.GetUpcomingPLEs)	
+		protected.GET("/card", cardHandler.GetCard)
+		protected.PATCH("/card/:event_id/reorder", cardHandler.Reorder)
+		protected.DELETE("/card/segments/:segment_id", cardHandler.DeleteSegment)
+		protected.POST("/card/:event_id/segments", cardHandler.AddSegment)
 
 		// Star endpoints
 		stars := protected.Group("/stars")
