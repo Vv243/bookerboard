@@ -27,6 +27,9 @@ func main() {
 	starRepo := appdb.NewStarRepository(database)
 	backupRepo := appdb.NewBackupPlanRepository(database)
 	userRepo := appdb.NewUserRepository(database)
+	threadRepo := appdb.NewNarrativeThreadRepository(database)
+	todoRepo := appdb.NewTodoRepository(database)
+	overviewRepo := appdb.NewOverviewRepository(database)
 
 	// Initialize solver client
 	solverClient := handler.NewSolverClient(cfg.SolverURL)
@@ -36,6 +39,9 @@ func main() {
 	injuryHandler := handler.NewInjuryHandler(starRepo, backupRepo, solverClient)
 	authHandler := handler.NewAuthHandler(userRepo, cfg.JWTSecret)
 	starHandler := handler.NewStarHandler(starRepo)
+	threadHandler := handler.NewNarrativeThreadHandler(threadRepo)
+	todoHandler := handler.NewTodoHandler(todoRepo)
+	overviewHandler := handler.NewOverviewHandler(overviewRepo)
 
 	// Create Gin router
 	r := gin.Default()
@@ -52,6 +58,13 @@ func main() {
 	protected := r.Group("/api")
 	protected.Use(middleware.RequireAuth(cfg.JWTSecret))
 	{
+		// Thread endpoints
+		protected.GET("/threads", threadHandler.List)
+		protected.GET("/threads/:id", threadHandler.GetByID)
+		protected.GET("/todos", todoHandler.List)
+		protected.GET("/overview/stats", overviewHandler.GetStats)
+		protected.GET("/overview/ples", overviewHandler.GetUpcomingPLEs)	
+
 		// Star endpoints
 		stars := protected.Group("/stars")
 		{

@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth'
+import { useTheme } from '../lib/theme'
+import { themeColors, themeTag, fontSize } from '../lib/styles'
 import Layout from '../components/Layout'
 import api from '../lib/api'
 import type { Star } from '../types/index'
 
 export default function StarRosterView() {
   const { isCreativeDirector } = useAuth()
+  const { isDark } = useTheme()
+  const c = themeColors(isDark)
+  const t = themeTag(isDark)
+
   const [search, setSearch] = useState('')
   const [brandFilter, setBrandFilter] = useState<'all' | 'raw' | 'smackdown'>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'injured'>('all')
@@ -26,45 +32,72 @@ export default function StarRosterView() {
     return matchSearch && matchBrand && matchStatus
   })
 
+  const thStyle = {
+    textAlign: 'left' as const,
+    padding: '12px 20px',
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.1em',
+    color: c.textTertiary,
+  }
+
+  const inputStyle = {
+    background: c.surface,
+    border: `1px solid ${c.border}`,
+    color: c.textPrimary,
+    fontSize: fontSize.sm,
+    padding: '8px 12px',
+    borderRadius: '6px',
+    outline: 'none',
+  }
+
+  const selectStyle = {
+    background: c.surface,
+    border: `1px solid ${c.border}`,
+    color: c.textPrimary,
+    fontSize: fontSize.sm,
+    padding: '8px 12px',
+    borderRadius: '6px',
+    outline: 'none',
+  }
+
   return (
     <Layout>
-      <div className="p-6 text-white">
+      <div style={{ padding: '24px', color: c.textPrimary }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Star Roster</h1>
-            <p className="text-gray-500 text-sm mt-1">{stars.length} superstars</p>
-          </div>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h1 style={{ fontSize: fontSize.xxl, fontWeight: 500, margin: '0 0 4px', color: c.textPrimary }}>
+            Star Roster
+          </h1>
+          <p style={{ fontSize: fontSize.sm, color: c.textTertiary, margin: 0 }}>
+            {stars.length} superstars
+          </p>
         </div>
 
         {/* Filters */}
-        <div className="flex gap-3 mb-6">
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <input
             type="text"
             placeholder="Search stars..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="px-3 py-2 rounded text-sm text-white focus:outline-none"
-            style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', width: '220px' }}
+            style={{ ...inputStyle, width: '220px' }}
           />
-
           <select
             value={brandFilter}
             onChange={e => setBrandFilter(e.target.value as any)}
-            className="px-3 py-2 rounded text-sm text-white focus:outline-none"
-            style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={selectStyle}
           >
             <option value="all">All Brands</option>
             <option value="raw">Raw</option>
             <option value="smackdown">SmackDown</option>
           </select>
-
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 rounded text-sm text-white focus:outline-none"
-            style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={selectStyle}
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -72,29 +105,31 @@ export default function StarRosterView() {
           </select>
         </div>
 
-        {/* Table */}
+        {/* Loading / error */}
         {isLoading && (
-          <div className="text-gray-500 text-sm">Loading roster...</div>
+          <p style={{ fontSize: fontSize.sm, color: c.textTertiary }}>Loading roster...</p>
         )}
-
         {error && (
-          <div className="text-red-400 text-sm">Failed to load roster.</div>
+          <p style={{ fontSize: fontSize.sm, color: '#f87171' }}>Failed to load roster.</p>
         )}
 
+        {/* Table */}
         {!isLoading && (
-          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-            <table className="w-full text-sm">
+          <div style={{
+            border: `1px solid ${c.border}`,
+            borderRadius: '10px',
+            overflow: 'hidden',
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#161616', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">Name</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">Brand</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">Alignment</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">Schedule</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">Workload</th>
-                  {isCreativeDirector() && (
-                    <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-500">Backstage</th>
-                  )}
+                <tr style={{ background: c.surfaceRaised, borderBottom: `1px solid ${c.border}` }}>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Brand</th>
+                  <th style={thStyle}>Alignment</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Schedule</th>
+                  <th style={thStyle}>Workload</th>
+                  {isCreativeDirector() && <th style={thStyle}>Backstage</th>}
                 </tr>
               </thead>
               <tbody>
@@ -102,32 +137,42 @@ export default function StarRosterView() {
                   <tr
                     key={star.id}
                     style={{
-                      background: i % 2 === 0 ? '#111' : '#131313',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      background: i % 2 === 0 ? c.surface : c.surfaceAlt,
+                      borderBottom: `1px solid ${c.borderSubtle}`,
                     }}
                   >
-                    <td className="px-4 py-3 font-medium text-white">{star.name}</td>
-                    <td className="px-4 py-3">
-                      <BrandBadge brand={star.brand} />
+                    <td style={{ padding: '14px 20px', fontSize: fontSize.md, fontWeight: 500, color: c.textPrimary }}>
+                      {star.name}
                     </td>
-                    <td className="px-4 py-3">
-                      <AlignmentBadge alignment={star.alignment} />
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={star.brand === 'raw' ? t.raw : t.smackdown}>
+                        {star.brand === 'smackdown' ? 'SD' : 'RAW'}
+                      </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={star.status} />
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={t[star.alignment as keyof typeof t] || t.neutral}>
+                        {star.alignment}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 capitalize">
-                      {star.scheduleType.replace('_', ' ')}
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={t[star.status as keyof typeof t] || t.active}>
+                        {star.status}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-400">
+                    <td style={{ padding: '14px 20px', fontSize: fontSize.sm, color: c.textSecondary }}>
+                      <span style={t[star.scheduleType as keyof typeof t] || t.full_time}>
+                        {star.scheduleType.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 20px', fontSize: fontSize.sm, color: c.textSecondary }}>
                       {star.workloadThisMonth} this month
                     </td>
                     {isCreativeDirector() && (
-                      <td className="px-4 py-3">
+                      <td style={{ padding: '14px 20px' }}>
                         {star.backstageScoreBelowThreshold ? (
-                          <span className="text-xs text-red-400 font-medium">⚠ Risk</span>
+                          <span style={{ fontSize: fontSize.xs, color: '#f87171', fontWeight: 700 }}>⚠ RISK</span>
                         ) : (
-                          <span className="text-xs text-gray-600">—</span>
+                          <span style={{ fontSize: fontSize.sm, color: c.textHint }}>—</span>
                         )}
                       </td>
                     )}
@@ -137,7 +182,10 @@ export default function StarRosterView() {
             </table>
 
             {filtered.length === 0 && (
-              <div className="text-center py-12 text-gray-600 text-sm">
+              <div style={{
+                textAlign: 'center', padding: '3rem',
+                fontSize: fontSize.sm, color: c.textTertiary,
+              }}>
                 No stars match your filters
               </div>
             )}
@@ -145,55 +193,5 @@ export default function StarRosterView() {
         )}
       </div>
     </Layout>
-  )
-}
-
-function BrandBadge({ brand }: { brand: string }) {
-  const isRaw = brand === 'raw'
-  return (
-    <span
-      className="text-xs font-bold uppercase px-2 py-0.5 rounded"
-      style={{
-        background: isRaw ? 'rgba(220,38,38,0.15)' : 'rgba(37,99,235,0.15)',
-        color: isRaw ? '#f87171' : '#60a5fa',
-        border: `1px solid ${isRaw ? 'rgba(220,38,38,0.3)' : 'rgba(37,99,235,0.3)'}`,
-      }}
-    >
-      {brand === 'smackdown' ? 'SD' : brand.toUpperCase()}
-    </span>
-  )
-}
-
-function AlignmentBadge({ alignment }: { alignment: string }) {
-  const colors: Record<string, { bg: string; text: string; border: string }> = {
-    face: { bg: 'rgba(34,197,94,0.15)', text: '#4ade80', border: 'rgba(34,197,94,0.3)' },
-    heel: { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)' },
-    neutral: { bg: 'rgba(156,163,175,0.15)', text: '#9ca3af', border: 'rgba(156,163,175,0.3)' },
-  }
-  const c = colors[alignment] || colors.neutral
-  return (
-    <span
-      className="text-xs font-bold uppercase px-2 py-0.5 rounded"
-      style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}` }}
-    >
-      {alignment}
-    </span>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; text: string; border: string }> = {
-    active: { bg: 'rgba(34,197,94,0.15)', text: '#4ade80', border: 'rgba(34,197,94,0.3)' },
-    injured: { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)' },
-    suspended: { bg: 'rgba(234,179,8,0.15)', text: '#facc15', border: 'rgba(234,179,8,0.3)' },
-  }
-  const c = colors[status] || colors.active
-  return (
-    <span
-      className="text-xs font-bold uppercase px-2 py-0.5 rounded"
-      style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}` }}
-    >
-      {status}
-    </span>
   )
 }

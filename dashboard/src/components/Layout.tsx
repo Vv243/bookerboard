@@ -1,9 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { useTheme } from '../lib/theme'
+import { themeColors } from '../lib/styles'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { auth, logout, isCreativeDirector } = useAuth()
   const navigate = useNavigate()
+  const { isDark, toggleTheme } = useTheme()
+  const c = themeColors(isDark)
 
   const handleLogout = () => {
     logout()
@@ -11,61 +15,82 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0a0a0a' }}>
-
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: c.bg, color: c.textPrimary }}
+    >
       {/* Top nav */}
-      <header
-        style={{
-          background: '#111',
-          borderBottom: '1px solid rgba(201,162,39,0.25)',
-        }}
-      >
+      <header style={{
+        background: c.surface,
+        borderBottom: `1px solid ${c.goldBorder}`,
+      }}>
         <div className="flex items-center justify-between px-6 py-0" style={{ height: '56px' }}>
 
-          {/* Logo */}
+          {/* Logo + nav */}
           <div className="flex items-center gap-6">
             <div
               className="text-lg font-black italic flex-shrink-0"
-              style={{ color: '#c9a227', letterSpacing: '-0.02em' }}
+              style={{ color: c.gold, letterSpacing: '-0.02em' }}
             >
-              BOOKER<span className="text-white">BOARD</span>
+              BOOKER<span style={{ color: c.textPrimary }}>BOARD</span>
             </div>
 
-            {/* Nav links */}
             <nav className="flex items-center gap-1">
               {isCreativeDirector() && (
-                <NavItem to="/year-overview" label="Year Overview" />
+                <NavItem to="/year-overview" label="Year Overview" isDark={isDark} c={c} />
               )}
-              <NavItem to="/card-builder" label="Card Builder" />
-              <NavItem to="/narrative-threads" label="Threads" />
-              <NavItem to="/star-roster" label="Roster" />
-              <NavItem to="/injury-alerts" label="Injury Alerts" />
+              <NavItem to="/card-builder" label="Card Builder" isDark={isDark} c={c} />
+              <NavItem to="/narrative-threads" label="Threads" isDark={isDark} c={c} />
+              <NavItem to="/star-roster" label="Roster" isDark={isDark} c={c} />
+              <NavItem to="/injury-alerts" label="Injury Alerts" isDark={isDark} c={c} />
             </nav>
           </div>
 
-          {/* Right side — role badge + email + sign out */}
-          <div className="flex items-center gap-4">
+          {/* Right side */}
+          <div className="flex items-center gap-3">
+            {/* Role badge */}
             <div
-              className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded"
+              className="text-xs font-bold uppercase tracking-wider px-2 py-1"
               style={{
-                background: isCreativeDirector()
-                  ? 'rgba(201,162,39,0.15)'
-                  : 'rgba(99,102,241,0.15)',
-                color: isCreativeDirector() ? '#c9a227' : '#818cf8',
-                border: `1px solid ${isCreativeDirector() ? 'rgba(201,162,39,0.3)' : 'rgba(99,102,241,0.3)'}`,
+                background: isCreativeDirector() ? c.goldDim : 'rgba(99,102,241,0.15)',
+                color: isCreativeDirector() ? c.gold : '#818cf8',
+                border: `1px solid ${isCreativeDirector() ? c.goldBorder : 'rgba(99,102,241,0.3)'}`,
               }}
             >
               {isCreativeDirector() ? 'Creative Director' : 'Lead Writer'}
             </div>
 
-            <div className="text-xs text-gray-500 hidden md:block">
+            {/* Email */}
+            <div style={{ fontSize: '13px', color: c.textTertiary }} className="hidden md:block">
               {auth.user?.email}
             </div>
 
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              style={{
+                fontSize: '13px',
+                padding: '5px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                background: 'transparent',
+                color: c.textSecondary,
+                border: `1px solid ${c.border}`,
+              }}
+            >
+              {isDark ? '☀ Light' : '◑ Dark'}
+            </button>
+
+            {/* Sign out */}
             <button
               onClick={handleLogout}
-              className="text-xs font-medium px-3 py-1.5 rounded transition-colors"
               style={{
+                fontSize: '13px',
+                fontWeight: 500,
+                padding: '5px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                background: 'transparent',
                 color: '#ef4444',
                 border: '1px solid rgba(239,68,68,0.3)',
               }}
@@ -84,14 +109,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   )
 }
 
-function NavItem({ to, label }: { to: string; label: string }) {
+function NavItem({ to, label, isDark, c }: {
+  to: string
+  label: string
+  isDark: boolean
+  c: ReturnType<typeof themeColors>
+}) {
   return (
     <NavLink
       to={to}
-      className="text-sm font-medium px-3 py-1.5 rounded transition-colors"
+      className="text-sm font-medium px-3 py-1.5 transition-colors"
       style={({ isActive }) => ({
-        color: isActive ? '#000' : 'rgba(255,255,255,0.5)',
-        background: isActive ? '#c9a227' : 'transparent',
+        color: isActive ? '#000' : c.textSecondary,
+        background: isActive ? c.gold : 'transparent',
+        borderRadius: '4px',
       })}
     >
       {label}
