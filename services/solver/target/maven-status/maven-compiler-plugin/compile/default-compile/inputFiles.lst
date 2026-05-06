@@ -1,7 +1,7 @@
 /workspace/services/solver/src/main/java/com/bookerboard/solver/model/BackupPlan.java
 /workspace/services/solver/src/main/java/com/bookerboard/App.java
-/workspace/services/solver/src/main/java/com/bookerboard/solver/solver/Arc.java
 /workspace/services/solver/src/main/java/com/bookerboard/solver/solver/BeamSearch.java
+/workspace/services/solver/src/main/java/com/bookerboard/solver/solver/Arc.java
 /workspace/services/solver/src/main/java/com/bookerboard/solver/model/BroadcastWindow.java
 /workspace/services/solver/src/main/java/com/bookerboard/solver/SolverApplication.java
 /workspace/services/solver/src/main/java/com/bookerboard/solver/service/SolverService.java

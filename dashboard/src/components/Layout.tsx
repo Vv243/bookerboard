@@ -109,7 +109,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   )
 }
 
-function NavItem({ to, label, isDark, c }: {
+function NavItem({ to, label, c }: {
   to: string
   label: string
   isDark: boolean
