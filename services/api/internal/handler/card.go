@@ -90,3 +90,27 @@ func (h *CardHandler) AddSegment(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, seg)
 }
+
+// UpdateSegmentStarsRequest is the body for the update stars endpoint.
+type UpdateSegmentStarsRequest struct {
+	StarIDs []int64 `json:"starIds"`
+}
+
+// UpdateSegmentStars handles PATCH /api/card/segments/:segment_id/stars
+func (h *CardHandler) UpdateSegmentStars(c *gin.Context) {
+	segmentID := c.Param("segment_id")
+
+	var req UpdateSegmentStarsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if err := h.repo.UpdateSegmentStars(segmentID, req.StarIDs); err != nil {
+		log.Printf("update segment stars error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}

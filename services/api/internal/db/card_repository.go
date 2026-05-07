@@ -234,3 +234,31 @@ func (r *CardRepository) AddSegment(eventID string, segmentType string, duration
 
 	return &seg, nil
 }
+
+// UpdateSegmentStars replaces all stars for a segment.
+func (r *CardRepository) UpdateSegmentStars(segmentID string, starIDs []int64) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Remove all existing stars for this segment
+	_, err = tx.Exec(`DELETE FROM segment_star WHERE segment_id = $1`, segmentID)
+	if err != nil {
+		return fmt.Errorf("delete existing stars: %w", err)
+	}
+
+	// Insert new stars
+	for _, starID := range starIDs {
+		_, err = tx.Exec(
+			`INSERT INTO segment_star (segment_id, star_id) VALUES ($1, $2)`,
+			segmentID, starID,
+		)
+		if err != nil {
+			return fmt.Errorf("insert star %d: %w", starID, err)
+		}
+	}
+
+	return tx.Commit()
+}

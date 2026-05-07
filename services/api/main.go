@@ -70,6 +70,7 @@ func main() {
 		protected.PATCH("/card/:event_id/reorder", cardHandler.Reorder)
 		protected.DELETE("/card/segments/:segment_id", cardHandler.DeleteSegment)
 		protected.POST("/card/:event_id/segments", cardHandler.AddSegment)
+		protected.PATCH("/card/segments/:segment_id/stars", cardHandler.UpdateSegmentStars)
 
 		// Star endpoints
 		stars := protected.Group("/stars")
