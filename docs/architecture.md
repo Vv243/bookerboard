@@ -1,299 +1,168 @@
 # BookerBoard — System Architecture
-# (Session 1 complete — verified March 2026)
 
-## What BookerBoard Does
+Updated through Session 9.
 
-A year-round WWE booking decision support system that models creative
-planning as a Constraint Satisfaction and Optimization Problem. When
-injuries, story changes, or bad fan reactions break a planned card,
-BookerBoard surfaces ranked valid alternatives in under a second.
+---
 
-Two users:
-- **Creative Director** (Executive Director equivalent — Prichard/Koskey)
-  — thinks year-round, makes strategic calls, sees all data including
-  backstage scores, accepts solver backup plans
-- **Lead Writer** (Baeckstrom/Williams equivalent) — builds weekly Raw
-  and SmackDown cards segment by segment, works within constraints,
-  escalates blockers to creative director
+## Five Layers
 
-## The Five Layers
 ```
-Client      →  React TypeScript booker dashboard (auth required)
-Gateway     →  Go API (EC2) — routing, auth, CQRS split
+Client      →  React TypeScript dashboard (auth required)
+Gateway     →  Go API (EC2) — routing, auth, CQRS split, todo computation
 Services    →  Java CSP solver · Go fan score engine
 Data        →  PostgreSQL RDS · S3
 Ingestion   →  Rust Lambda scraper · Go Lambda poller · Manual input
 ```
 
-## The Two Critical Flows
+---
 
-### Injury write path (~860ms synchronous)
+## Live Infrastructure
+
+| Component | Address | Notes |
+|---|---|---|
+| Dashboard + API | http://54.146.32.225 | nginx on port 80 |
+| Go API | http://54.146.32.225:8081 | Direct access for testing |
+| Java solver | http://54.146.32.225:8080 | Internal only |
+| RDS PostgreSQL | bookerboard-db.c4v40ywyq2ih.us-east-1.rds.amazonaws.com:5432 | sslmode=require |
+
+### EC2 Services (systemd)
+- `bookerboard-solver` — Java Spring Boot, port 8080
+- `bookerboard-api` — Go Gin, port 8081
+- `nginx` — port 80, serves dashboard + proxies /api
+
+### nginx routing
 ```
-Creative director or lead writer flags injury
-→ Go API receives PATCH /stars/:id
-→ Go API calls Java solver synchronously
-→ Java solver runs AC-3 arc consistency (propagates constraint failures)
-→ Java solver runs beam search (finds top-K valid replacement cards)
+GET /        → /var/www/bookerboard (React SPA)
+GET /api/*   → http://localhost:8081/api/*
+```
+
+---
+
+## Two Critical Flows
+
+### Injury Write Path (~860ms synchronous)
+```
+User flags injury (PATCH /stars/:id)
+→ Go API receives request
+→ Star status updated in PostgreSQL
+→ Go API calls Java solver synchronously (POST /solve)
+→ Solver runs AC-3 + beam search
 → Ranked backup plans written to PostgreSQL
 → Response returned to dashboard
 ```
 
-### Read path (dashboard loads)
+### Read Path (dashboard loads)
 ```
 Go API → PostgreSQL → dashboard
 Go API computes next-show todo list from rule checks → included in response
 ```
 
-These two paths never interfere. The solver's write activity does not
-touch the read path. This is the CQRS principle — Command Query
-Responsibility Segregation.
+---
 
-## Service Responsibilities
+## Solver Contract
 
-### React TypeScript Dashboard (Client)
-- Five views: year overview, card builder, narrative threads, star
-  roster, injury alerts
-- Auth required — planning tool only, not public
-- Creative director lands on year overview on login
-- Lead writer lands on card builder on login
-- Talks only to the Go API gateway, never directly to services or DB
+The Java solver is stateless. Receives card state as JSON, returns ranked
+alternative cards as JSON with reasoning per plan. Never touches the database.
 
-### Go API Gateway (EC2)
-- Single entry point for all dashboard requests
-- Handles authentication — issues JWT with role claim on login
-- Enforces role-based access on every endpoint
-- Splits read vs write traffic (CQRS)
-- Calls Java solver synchronously on injury write path
-- Computes next-show todo list on every card load — runs rule checks
-  against the database (no solver call) and returns sorted blocker /
-  warning / decision items with the card response
-- Does not contain business logic — routes and orchestrates only
-
-### Java CSP Solver (EC2, same instance as Go API)
-- Stateless — receives card state as JSON, returns ranked alternatives
-  as JSON
-- Never touches the database directly
-- Implements AC-3 arc consistency from scratch — O(ed³)
-- Implements beam search with fan-weighted heuristic from scratch
-- Sub-second response required — synchronous call, no queue
-- Enforces availability constraints — part-time stars outside their
-  contracted window excluded from beam search before ranking begins
-- Surfaces backstage score warnings on any backup plan containing a
-  star below the configured professionalism threshold
-
-### Go Fan Score Engine (Lambda)
-- Runs on a weekly cron, not always-on
-- Fetches Reddit sentiment and Google Trends data
-- Aggregates into fan_score rows (one per star per week)
-- Writes to PostgreSQL
-
-### Rust Lambda Scraper
-- Runs weekly, not always-on
-- Parses CAGEMATCH HTML for match quality scores
-- Memory-safe HTML parsing — Rust ownership model prevents parsing bugs
-- Writes match quality data to PostgreSQL
+---
 
 ## User Roles
 
-Two roles. Enforced at the Go API layer via JWT claims on every request.
+Enforced at Go API layer via JWT claims.
 
-### Creative Director
-- Full access to all five views
-- Reads and writes backstage scores
-- Accepts solver backup plans and marks storyline overrides
-- Confirms part-time star appearances
-- Sees all todo items — blockers, warnings, and decisions
-- Lands on year overview on login
+**creative_director:** Full access, backstage scores, accepts solver plans, lands on year overview.
 
-### Lead Writer
-- No access to year overview
-- Lands on card builder on login — primary workspace
-- Narrative threads: read-only
-- Star roster: read-only — backstage score fields stripped from API
-  response for lead_writer tokens
-- Injury alerts: read-only — action buttons replaced with "Escalate
-  to creative director"
-- Cannot accept solver plans or mark storyline overrides
-- Todo items: sees blockers and warnings only, not decisions
+**lead_writer:** No year overview, backstage scores stripped, escalate-only on injury alerts, decisions hidden from todo list.
 
-### How it works technically
-Go API issues a JWT on login containing the user's role claim. Every
-endpoint checks the role before returning data. Backstage score fields
-are stripped from star responses for lead_writer tokens. Solver action
-endpoints return 403 for lead_writer tokens.
-
-## AWS Infrastructure
-
-| Service | What runs on it |
-|---|---|
-| EC2 | Go API gateway + Java CSP solver (single instance) |
-| RDS | PostgreSQL — managed, automated backups |
-| Lambda | Rust scraper + Go fan score poller (weekly cron) |
-| S3 | Static assets, solver JAR deployment artifacts |
-
-**Why single EC2:** 1–10 users. No load balancer, no ECS, no Kubernetes.
-Do not over-engineer for traffic that does not exist.
-
-**Why Lambda for scrapers:** Event-driven, weekly schedule, no reason
-to burn always-on compute.
-
-**Why RDS over self-managed Postgres:** Automated backups and failover
-with zero ops overhead.
-
-## The Solver Contract
-
-### Input — card state as JSON per request
-```json
-{
-  "show": {
-    "id": "...",
-    "name": "Raw",
-    "date": "2026-03-30",
-    "broadcast_window": {
-      "content_minutes": 150,
-      "constraint_type": "soft"
-    }
-  },
-  "segments": [...],
-  "stars": [
-    {
-      "id": "...",
-      "name": "CM Punk",
-      "schedule_type": "full_time",
-      "status": "active",
-      "fan_score": {
-        "value": 91,
-        "trend": "up",
-        "confidence": "high"
-      },
-      "draw_score": {
-        "value": 89,
-        "confidence": "medium"
-      },
-      "backstage_score": {
-        "value": 54,
-        "confidence": "high",
-        "below_threshold": true
-      },
-      "availability": {
-        "available": true,
-        "appearances_remaining": null
-      }
-    }
-  ],
-  "narrative_threads": [...],
-  "constraints": {
-    "rematch_window_weeks": 6,
-    "overexposure_threshold": 4,
-    "backstage_score_threshold": 60
-  }
-}
-```
-
-### Output — ranked alternative cards as JSON
-```json
-{
-  "plans": [
-    {
-      "rank": 1,
-      "score": 0.94,
-      "segments": [...],
-      "violations_resolved": [...],
-      "warnings": ["CM Punk backstage score below threshold"],
-      "reasoning": "Jey Uso inserted as championship challenger..."
-    }
-  ]
-}
-```
-
-### Solver guarantees
-- No database connection
-- No local state between calls
-- Testable with pure data — no database setup needed in unit tests
-- Enforces availability constraints before ranking
-- Surfaces backstage warnings without blocking valid plans
-
-## Data Model Summary (15 Tables)
-
-| Table | Purpose |
-|---|---|
-| `star` | WWE roster — name, brand, alignment, health, workload, injury risk, elevation trajectory, schedule_type (full_time / part_time / special_appearance), contracted_appearances_remaining |
-| `championship` | Title name, brand, prestige tier, current holder, reign start |
-| `ppv_event` | Every event — weekly Raw/SmackDown and PLEs — with type and prestige tier |
-| `broadcast_window` | Show name, distributor (US), distributor (international), content_minutes, constraint_type ('soft' or 'hard'), effective dates — one row per contract period per show |
-| `segment` | Every card segment — type, duration range, star tier required, narrative thread FK |
-| `narrative_thread` | Active storylines — stars involved, target PLE, build weeks, heat trajectory, status |
-| `championship_match_history` | Historical title matches — which stars, which title, which event, result |
-| `match_history` | All historical matchups for repeat-feud detection and CAGEMATCH quality scores |
-| `fan_score` | Temporal — one row per star per week: pro_score, anti_score, controversy, data_source, confidence |
-| `draw_score` | Business value per star: merch_score, crowd_reaction, social_following, data_source, confidence |
-| `backstage_score` | Per star — professionalism, locker_room_reputation, creative_cooperation, injury_reliability, composite_score, below_threshold flag — creative director only |
-| `star_availability` | Per part-time star — available_from, available_to, max_appearances, appearances_used, notes — one row per availability window |
-| `solver_run` | Every solver invocation — input card, output plans, latency, planning horizon |
-| `backup_plan` | Ranked backup plans from solver — score, reasoning, constraint violations resolved |
-| `user` | Creative directors and lead writers — email, role, hashed password, created_at |
+---
 
 ## Todo Computation
 
-Todos are computed by the Go API on every card load — not by the solver.
-They are derived from simple rule checks against the database.
+Go API computes todos on every card load from rule checks.
 
-### Blocker rules (must resolve before card can finalize)
-- Segment contains injured or unavailable star
-- Championship match segment has no contendership reason
-- Card exceeds broadcast_window content_minutes where constraint_type
-  is 'hard'
+- **Blockers:** Injured star in segment, championship match missing contendership reason, hard constraint exceeded
+- **Warnings:** Stalling thread, part-time star approaching appearance limit, overexposure approaching
+- **Decisions (creative_director only):** Thread with no target PLE, championship reign over 180 days
 
-### Warning rules (should resolve before show airs)
-- Part-time star on card with limited appearances remaining
-- Narrative thread has had no segment in the last X weeks and target
-  PLE is within Y weeks
-- Star's consecutive appearances approaching overexposure threshold
+---
 
-### Decision rules (creative director judgment required)
-- Feud has no target PLE assigned and has been dark for X weeks
-- Championship reign length approaching overexposure threshold
-- Part-time star's availability window ending soon with no follow-up
-  window defined
+## Constraint Graph
 
-## Constraint Graph (what the solver enforces)
 ```
-sum(segment.duration_max) ≤ broadcast_window.content_minutes
-  → soft: warn · hard: block
+sum(segment.duration) ≤ broadcast_window.content_minutes
+  → soft (Raw): warn, allow save
+  → hard (SmackDown): block finalization
 
 AND no segment features star WHERE star.status = 'injured'
-
-AND star.schedule_type = 'part_time'
-  → show date must fall within active star_availability window
-  → star_availability.appearances_used < max_appearances
-
+AND part_time stars within availability window and appearances limit
 AND all narrative_threads serviced within threshold weeks
-
-AND championship matches:
-  → build_weeks ≥ minimum
-  → contendership_reason IS NOT NULL
-  → both stars have had build segments
-
-AND no immediate rematch: same stars same title < 6 weeks apart
-
+AND championship matches: build_weeks ≥ minimum, contendership_reason set
+AND no immediate rematch: same stars same title < 6 weeks
 AND star.consecutive_appearances ≤ overexposure_threshold
-
-AND segment.star_tier_required matches star.tier
-
-AND event.prestige_tier ≥ championship.prestige_tier (title matches)
-
-AND backstage_score.composite < threshold
-  → flag warning on plan (does not block)
+AND backstage_score.composite < threshold → flag warning (does not block)
 ```
 
-## CS Concepts Demonstrated
+---
 
-| Concept | Where |
+## Database — 18 Tables
+
+| Table | Purpose |
 |---|---|
-| CSP with AC-3 arc consistency O(ed³) | Java solver |
-| Beam search with fan-weighted heuristic | Java solver |
-| CQRS — read/write path separation | Go API gateway |
-| Temporal data modeling | fan_score (one row per star per week) |
-| Bin-packing constraint | Broadcast window time budget |
-| Availability constraint modeling | star_availability table + solver |
-| Role-based access control | Go API JWT enforcement |
+| `star` | WWE roster |
+| `championship` | Titles and current holders |
+| `ppv_event` | All events — weekly and PLEs |
+| `broadcast_window` | Show runtime contracts |
+| `segment` | Card segments |
+| `narrative_thread` | Active storylines |
+| `championship_match_history` | Historical title matches |
+| `match_history` | All historical matchups |
+| `fan_score` | Temporal — one row per star per week |
+| `draw_score` | Business value per star |
+| `backstage_score` | Professionalism, locker room, creative cooperation |
+| `star_availability` | Part-time star windows |
+| `solver_run` | Every solver invocation |
+| `backup_plan` | Ranked backup plans |
+| `user` | Creative directors and lead writers |
+| `segment_star` | Stars assigned to segments |
+| `narrative_thread_star` | Stars in narrative threads |
+| `system_config` | Configurable thresholds |
+
+---
+
+## Local Development
+
+```bash
+docker compose up -d
+psql -h postgres -U bookerboard -d bookerboard -f services/db/schema.sql
+psql -h postgres -U bookerboard -d bookerboard -f services/db/seed.sql
+
+cd services/solver && mvn spring-boot:run
+cd services/api && CGO_ENABLED=0 go run main.go
+cd dashboard && npm run dev -- --host
+```
+
+---
+
+## Deployment Workflow
+
+```bash
+# 1. Build locally
+cd services/api
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildvcs=false -o bookerboard-api .
+cd dashboard && npm run build
+
+# 2. Upload
+scp -i ~/.ssh/bookerboard-key.pem services/api/bookerboard-api ec2-user@54.146.32.225:~/
+tar -czf /tmp/dist.tar.gz -C dashboard dist
+scp -i ~/.ssh/bookerboard-key.pem /tmp/dist.tar.gz ec2-user@54.146.32.225:~/
+
+# 3. Apply on EC2
+ssh -i ~/.ssh/bookerboard-key.pem ec2-user@54.146.32.225
+sudo mv ~/bookerboard-api /opt/bookerboard/services/api/bookerboard-api
+sudo chmod +x /opt/bookerboard/services/api/bookerboard-api
+sudo tar -xzf ~/dist.tar.gz -C /var/www/bookerboard --strip-components=1
+sudo systemctl restart bookerboard-api nginx
+
+# 4. Verify
+curl http://54.146.32.225/health
+```
