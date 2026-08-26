@@ -3,7 +3,7 @@
 A year-round WWE booking decision support system that models creative planning
 as a Constraint Satisfaction and Optimization Problem.
 
-**Live at:** http://54.146.32.225
+**Live at:** To be updated
 
 **Test credentials:** vinh@bookerboard.com / bookerboard123
 
